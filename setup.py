@@ -5,7 +5,7 @@ setuptools.setup(
     version='0.1.0',
     license="MIT",
 
-    author="Ryan Ye",
+    author="Jianye Ye",
     author_email="yejianye@gmail.com",
     url="https://github.com/yejianye/eversync",
 
