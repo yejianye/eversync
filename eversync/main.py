@@ -7,6 +7,7 @@ Sync local directory to evernote notebook
 import argparse
 import os
 import sys
+import time
 from collections import Counter
 
 from evernote.api.client import EvernoteClient
@@ -31,7 +32,7 @@ max_note_count = 10000
 
 def tset_notebook(store, name):
     """Return notebook with specific name.
-    Create a new notebook if there isn't one existing.
+    Create a new notebook if there isn't an existing one.
     """
     notebooks = store.listNotebooks()
     notebook = [nb for nb in notebooks if nb.name == name]
@@ -46,6 +47,8 @@ def tset_notebook(store, name):
         return store.createNotebook(dev_token, notebook)
 
 def update_note(store, note, path):
+    """Update a note from the content in a local file
+    """
     ext = utils.get_file_ext(path)
     processor_cls = note_processors.get(ext)
     processor = processor_cls(path)
@@ -56,6 +59,8 @@ def update_note(store, note, path):
     return note
 
 def create_note(store, path, notebook):
+    """Create a note from the content in a local file
+    """
     ext = utils.get_file_ext(path)
     processor_cls = note_processors.get(ext)
     processor = processor_cls(path)
@@ -104,17 +109,34 @@ def upsert_notes(store, files, notebook):
             result.update({'created': 1})
     return result
 
+def sync_key(local_dir, notebook_name):
+    return '{}({})'.format(os.path.abspath(local_dir), notebook_name)
+
+def changed_since_last_sync(local_dir, notebook_name):
+    sync_time = last_sync_time(local_dir, notebook_name)
+    files = utils.filter_files(local_dir, supported_file_exts)
+    modified_time = max(os.path.getmtime(f) for f in files)
+    return modified_time > sync_time
+
+def last_sync_time(local_dir, notebook_name):
+    key = sync_key(local_dir, notebook_name)
+    return utils.read_setting(['sync_time', key])
+
+def save_sync_time(local_dir, notebook_name):
+    key = sync_key(local_dir, notebook_name)
+    utils.write_setting(['sync_time', key], time.time())
+
 def sync(local_dir, notebook_name):
     if not os.path.exists(local_dir):
-        error("{} doesn't exist", local_dir)
-    os.chdir(local_dir)
-    client = EvernoteClient(service_host=service_host, token=dev_token)
-    store = client.get_note_store()
-    notebook = tset_notebook(store, notebook_name)
-    files = utils.filter_files('.', supported_file_exts)
-    log('Found {} note files under {}'.format(
-        len(files), os.getcwd()))
-    result = upsert_notes(store, files, notebook)
+        error("{} doesn't exist".format(local_dir))
+    with utils.chdir(local_dir):
+        client = EvernoteClient(service_host=service_host, token=dev_token)
+        store = client.get_note_store()
+        notebook = tset_notebook(store, notebook_name)
+        files = utils.filter_files('.', supported_file_exts)
+        log('Found {} note files under {}'.format(
+            len(files), os.getcwd()))
+        result = upsert_notes(store, files, notebook)
     log('''Sync completed.
     Created:{created}
     Updated:{updated}
@@ -122,13 +144,21 @@ def sync(local_dir, notebook_name):
 
 def main():
     if not dev_token:
-        print 'Please set your evernote developer token in EVERNOTE_DEV_TOKEN.'
+        log('Please set your evernote developer token in EVERNOTE_DEV_TOKEN.')
         sys.exit(1)
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--dir", default='.', help="Local directory path (default: .)")
     parser.add_argument("--notebook", default="Eversync", help="Notebook in Evernote that local files would be synced to (default: Eversync) ")
+    parser.add_argument("--force", default=False, action="store_true", help="Force sync with evernote even there's no change after last sync (default: False)")
     args = parser.parse_args()
-    sync(args.dir, args.notebook)
+    if args.force or changed_since_last_sync(args.dir, args.notebook):
+        sync(args.dir, args.notebook)
+        save_sync_time(args.dir, args.notebook)
+    else:
+        log("No changes found after last sync time.".format(
+            last_sync_time(args.dir, args.notebook)
+        ))
+
 
 if __name__ == '__main__':
     main()
