@@ -13,9 +13,11 @@ from collections import Counter
 from evernote.api.client import EvernoteClient
 from evernote.edam.notestore import NoteStore
 from evernote.edam.type.ttypes import Notebook, Note, NoteAttributes
+from evernote.edam.error.ttypes import EDAMUserException
+from evernote.edam.error.constants import EDAMErrorCode
 
 from eversync import utils
-from eversync.log import log, error
+from eversync.log import log, error, debug, debug_mode
 from eversync.processor import TextProcessor, MarkdownProcessor, OrgModeProcessor
 
 service_host = os.environ.get('EVERNOTE_SERVICE_HOST',
@@ -46,6 +48,13 @@ def tset_notebook(store, name):
         log('Create new notebook {}'.format(name))
         return store.createNotebook(dev_token, notebook)
 
+def evernote_api_error(e, note):
+    error(e)
+    if e.errorCode == EDAMErrorCode.ENML_VALIDATION:
+        error("Invalid note content:")
+        error(note.content)
+    sys.exit(1)
+
 def update_note(store, note, path):
     """Update a note from the content in a local file
     """
@@ -55,7 +64,10 @@ def update_note(store, note, path):
     note.title = processor.get_title()
     note.content = processor.get_content()
     note.updated = os.path.getmtime(path) * 1000
-    store.updateNote(dev_token, note)
+    try:
+        store.updateNote(dev_token, note)
+    except EDAMUserException as e:
+        evernote_api_error(e, note)
     return note
 
 def create_note(store, path, notebook):
@@ -71,7 +83,10 @@ def create_note(store, path, notebook):
     attributes.sourceURL = utils.path_to_source_url(notebook, path)
     note.attributes = attributes
     note.notebookGuid = notebook.guid
-    return store.createNote(dev_token, note)
+    try:
+        return store.createNote(dev_token, note)
+    except EDAMUserException as e:
+        evernote_api_error(e, note)
 
 def upsert_notes(store, files, notebook):
     """Create or update notes from content in local files.
@@ -98,11 +113,13 @@ def upsert_notes(store, files, notebook):
         last_modified = os.path.getmtime(f)
         if note:
             if last_modified * 1000 > note.updated:
+                debug('{} has been modified since last sync.'.format(f))
                 update_note(store, note, f)
                 log('Updated [{}](Notebook:{}) from {}'.format(
                     note.title, notebook.name, f))
                 result.update({'updated': 1})
         else:
+            debug('{} is a new note file.'.format(f))
             note = create_note(store, f, notebook)
             log('Created [{}](Notebook:{}) from {}'.format(
                 note.title, notebook.name, f))
@@ -148,9 +165,16 @@ def main():
         sys.exit(1)
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--dir", default='.', help="Local directory path (default: .)")
-    parser.add_argument("--notebook", default="Eversync", help="Notebook in Evernote that local files would be synced to (default: Eversync) ")
-    parser.add_argument("--force", default=False, action="store_true", help="Force sync with evernote even there's no change after last sync (default: False)")
+    parser.add_argument("--notebook", default="Eversync",
+                        help="Notebook in Evernote that local files would be synced to (default: Eversync) ")
+    parser.add_argument("--force", default=False, action="store_true",
+                        help="Force sync with evernote even there's no change after last sync (default: False)")
+    parser.add_argument("--debug", default=False, action="store_true",
+                        help="Print debug information")
     args = parser.parse_args()
+    if args.debug:
+        debug_mode(True)
+
     if args.force or changed_since_last_sync(args.dir, args.notebook):
         sync(args.dir, args.notebook)
         save_sync_time(args.dir, args.notebook)
@@ -158,7 +182,6 @@ def main():
         log("No changes found after last sync time.".format(
             last_sync_time(args.dir, args.notebook)
         ))
-
 
 if __name__ == '__main__':
     main()

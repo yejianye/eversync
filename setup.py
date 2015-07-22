@@ -28,6 +28,6 @@ setuptools.setup(
             'eversync = eversync.main:main',
         ]
     },
-    install_requires=['evernote', 'markdown', 'orgco'],
+    install_requires=['evernote', 'markdown', 'orgco', 'lxml'],
     packages=['eversync'],
 )

@@ -2,6 +2,7 @@
 
 import os
 import json
+import subprocess
 
 rcfile_path = os.path.join(os.environ['HOME'], '.eversync')
 
@@ -82,3 +83,10 @@ class chdir(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         os.chdir(self.current_dir)
+
+def executable_exists(program):
+    return os.popen('which {}'.format(program)) != ''
+
+def shell_command(command):
+    with os.popen(command) as f:
+        return f.read()

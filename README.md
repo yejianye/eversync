@@ -31,3 +31,7 @@ To sync a local directory to evernote notebook,
 ```bash
 eversync --dir [local-directory-path] --notebook [notebook-name]
 ```
+
+TODO
+----
+- Add border to tables in generated ENML

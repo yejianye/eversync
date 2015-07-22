@@ -2,6 +2,12 @@
 
 import markdown
 import orgco
+import os
+
+from lxml.html import clean
+
+
+from eversync import utils
 
 __all__ = ['TextProcessor', 'MarkdownProcessor', 'OrgModeProcessor']
 def wrap_ENML(content):
@@ -37,5 +43,18 @@ class MarkdownProcessor(NoteFileProcessor):
         return markdown.markdown(self.raw_content)
 
 class OrgModeProcessor(NoteFileProcessor):
+    def _escape(self, html):
+        return html.replace('&', '&amp;')
+
+    def _org_ruby_convert(self):
+        html = utils.shell_command('org-ruby {} --translate html'.format(self.path))
+        cleaner = clean.Cleaner(safe_attrs_only=True, safe_attrs=frozenset())
+        return cleaner.clean_html(html)
+
     def body(self):
-        return orgco.convert_html(self.raw_content)
+        """Convert note from orgmode to html.
+        Use org-ruby if available, otherwise use python orgco module"""
+        if utils.executable_exists('org-ruby'):
+            return self._org_ruby_convert()
+        html = orgco.convert_html(self.raw_content)
+        return self._escape(html)
