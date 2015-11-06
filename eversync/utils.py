@@ -4,7 +4,10 @@ import os
 import json
 import subprocess
 
+from eversync.log import debug
+
 rcfile_path = os.path.join(os.environ['HOME'], '.eversync')
+default_ignore_dirs = ['.git']
 
 def get_file_ext(path):
     return path.split('.')[-1]
@@ -14,17 +17,24 @@ def path_to_source_url(notebook, path):
     notebook_uri = notebook.name.replace(' ', '-').lower()
     return 'eversync://{}/{}'.format(notebook_uri, path_uri)
 
-def filter_files(root_dir, exts):
+def filter_files(root_dir, exts, ignore_dirs=None):
     """Find text files that could be converted to a note.
     Currently, supported file extensions are defined in `supported_file_exts`
     """
     result = []
+    if ignore_dirs is None:
+        ignore_dirs = default_ignore_dirs
     for path, _, files in os.walk(root_dir):
+        rel_path = os.path.relpath(path)
+        if any(rel_path.startswith(d) for d in ignore_dirs):
+            continue
         for fname in files:
             ext = get_file_ext(fname)
             if ext in exts:
-                relative_path = os.path.relpath(os.path.join(path, fname))
-                result.append(relative_path)
+                file_path = os.path.join(rel_path, fname)
+                if file_path.startswith('./'):
+                    file_path = file_path[2:]
+                result.append(file_path)
     return result
 
 def read_setting(key_path):
@@ -89,4 +99,4 @@ def executable_exists(program):
 
 def shell_command(command):
     with os.popen(command) as f:
-        return f.read()
+        return f.read().decode('utf8')

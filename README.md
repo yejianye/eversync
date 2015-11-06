@@ -34,4 +34,4 @@ eversync --dir [local-directory-path] --notebook [notebook-name]
 
 TODO
 ----
-- Add border to tables in generated ENML
+- Display TODO items correctly
