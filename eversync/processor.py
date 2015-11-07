@@ -57,6 +57,11 @@ class OrgModeProcessor(NoteFileProcessor):
     def _escape(self, html):
         return html.replace('&', '&amp;')
 
+    def _convert_todo_item(self, html):
+        html = html.replace('<li>[ ]', '<li><en-todo/>')
+        html = html.replace('<li>[X]', '<li><en-todo checked="true"/>')
+        return html
+
     def _add_styles(self, html):
         for tag, style in self.styles.iteritems():
             html = html.replace('<{}>'.format(tag),
@@ -66,13 +71,15 @@ class OrgModeProcessor(NoteFileProcessor):
     def _org_ruby_convert(self):
         html = utils.shell_command('org-ruby {} --translate html'.format(self.path))
         cleaner = clean.Cleaner(safe_attrs_only=True, safe_attrs=frozenset())
-        html = cleaner.clean_html(html)
-        return self._add_styles(html)
+        return cleaner.clean_html(html)
 
     def body(self):
         """Convert note from orgmode to html.
         Use org-ruby if available, otherwise use python orgco module"""
         if utils.executable_exists('org-ruby'):
-            return self._org_ruby_convert()
-        html = orgco.convert_html(self.raw_content)
-        return self._escape(html)
+            html = self._org_ruby_convert()
+        else:
+            html = orgco.convert_html(self.raw_content)
+            html = self._escape(html)
+        html = self._convert_todo_item(html)
+        return self._add_styles(html)
