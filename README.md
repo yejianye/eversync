@@ -10,7 +10,7 @@ Features
 - Sync all org, markdown and plain-text files under a local directory to an evernote notebook
 - Incremental sync, only modified orgmode files will be uploaded to evernote 
 - Support both Evernote International and Evernote China (印象笔记)
-- Support evernote style tables and todo items
+- Support headings, lists, tables and todo items
 
 Installation
 ------------
@@ -31,8 +31,8 @@ If `org-ruby` is available, `eversync` will use it to convert orgmode file to ht
 How to use
 ----------
 First, you need get a developer authentication token at
-China: https://dev.yinxiang.com/doc/articles/dev_tokens.php
-International: https://www.evernote.com/api/DeveloperToken.action
+- China: https://dev.yinxiang.com/doc/articles/dev_tokens.php
+- International: https://www.evernote.com/api/DeveloperToken.action
 
 Setup environment variable for developer token and service host. For example
 
