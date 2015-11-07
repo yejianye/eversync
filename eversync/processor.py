@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import markdown
+import markdown2
 import orgco
-import os
 
 from lxml.html import clean
 
@@ -34,9 +33,13 @@ class NoteFileProcessor(object):
     def body(self):
         raise NotImplementedError()
 
+    def post_process(self, html):
+        raise html
+
     def get_content(self):
         if self.raw_content.strip():
-            return wrap_ENML(self.body())
+            html = self.post_process(self.body())
+            return wrap_ENML(html)
         else:
             return wrap_ENML('')
 
@@ -44,18 +47,47 @@ class TextProcessor(NoteFileProcessor):
     def body(self):
         return '<pre>{}</pre>'.format(self.raw_content)
 
+
 class MarkdownProcessor(NoteFileProcessor):
     def body(self):
-        return markdown.markdown(self.raw_content)
+        return markdown2.markdown(self.raw_content, extras=['tables'])
+
+    def post_process(self, html):
+        return HTMLPostProcessor(html).run()
+
 
 class OrgModeProcessor(NoteFileProcessor):
+    def _escape(self, html):
+        return html.replace('&', '&amp;')
+
+    def _org_ruby_convert(self):
+        html = utils.shell_command('org-ruby {} --translate html'.format(self.path))
+        cleaner = clean.Cleaner(safe_attrs_only=True, safe_attrs=frozenset())
+        return cleaner.clean_html(html)
+
+    def body(self):
+        """Convert note from orgmode to html.
+        Use org-ruby if available, otherwise use python orgco module"""
+        if utils.executable_exists('org-ruby'):
+            return self._org_ruby_convert()
+        else:
+            html = orgco.convert_html(self.raw_content)
+            return self._escape(html)
+
+    def post_process(self, html):
+        return HTMLPostProcessor(html).run()
+
+
+class HTMLPostProcessor(object):
+    """Post process html content to match evernote style"""
     styles = {
         'table': '-evernote-table:true;border-collapse:collapse;width:100%;table-layout:fixed;margin-left:0px;',
         'th': 'border-style:solid;border-width:1px;border-color:rgb(219,219,219);padding:10px;margin:0px;width:50%;',
         'td': 'border-style:solid;border-width:1px;border-color:rgb(219,219,219);padding:10px;margin:0px;width:50%;',
     }
-    def _escape(self, html):
-        return html.replace('&', '&amp;')
+
+    def __init__(self, html):
+        self.input = html
 
     def _convert_todo_item(self, html):
         html = html.replace('<li>[ ]', '<li><en-todo/>')
@@ -68,18 +100,6 @@ class OrgModeProcessor(NoteFileProcessor):
                          "<{} style='{}'>".format(tag, style))
         return html
 
-    def _org_ruby_convert(self):
-        html = utils.shell_command('org-ruby {} --translate html'.format(self.path))
-        cleaner = clean.Cleaner(safe_attrs_only=True, safe_attrs=frozenset())
-        return cleaner.clean_html(html)
-
-    def body(self):
-        """Convert note from orgmode to html.
-        Use org-ruby if available, otherwise use python orgco module"""
-        if utils.executable_exists('org-ruby'):
-            html = self._org_ruby_convert()
-        else:
-            html = orgco.convert_html(self.raw_content)
-            html = self._escape(html)
-        html = self._convert_todo_item(html)
+    def run(self):
+        html = self._convert_todo_item(self.input)
         return self._add_styles(html)

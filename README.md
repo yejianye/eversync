@@ -1,13 +1,13 @@
 Eversync
 ========
 
-Sync your local directories with evernote notebooks.
+Sync your local directories with evernote notebooks. If you'd like to take notes in markdown or orgmode, but also want to store all of your notes in evernote so that you could access and do full-text search on mobile phones. This tool will be useful to you.
 
 Note, this script has only been tested with Evernote China (印象笔记) on Mac OSX.
 
 Features
 --------
-- Sync all org, markdown and plain-text files under a local directory to an evernote notebook
+- Sync all orgmode, markdown and plain-text files under a local directory to an evernote notebook
 - Incremental sync, only modified orgmode files will be uploaded to evernote 
 - Support both Evernote International and Evernote China (印象笔记)
 - Support headings, lists, tables and todo items
@@ -20,7 +20,7 @@ Git clone this repo and run setup in its root directory
 python setup.py install
 ```
 
-It's also recommended to install [org-ruby](https://github.com/wallyqs/org-ruby), because it's one of the most matured project for converting org files to html. Github uses it to generate org previews on github.com. To install
+It's also recommended to install [org-ruby](https://github.com/wallyqs/org-ruby), because it's one of the most matured project for converting orgmode files to html. Github uses it to generate orgmode previews on github.com. To install
 
 ```bash
 gem install org-ruby
