@@ -8,3 +8,7 @@
 | col1 | col2   |
 |------|--------|
 | row1 | foobar |
+** Horizontal rule
+-----
+Hello
+-----

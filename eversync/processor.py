@@ -57,22 +57,49 @@ class MarkdownProcessor(NoteFileProcessor):
 
 
 class OrgModeProcessor(NoteFileProcessor):
+    def __init__(self, path, backend=None):
+        super(OrgModeProcessor, self).__init__(path)
+        self.backend = backend
+
+    def get_title(self):
+        title = super(OrgModeProcessor, self).get_title()
+        ext = self.path.rsplit('.', 1)[-1]
+        if ext == 'org_archive':
+            title += ' Archive'
+        return title
+
     def _escape(self, html):
         return html.replace('&', '&amp;')
 
     def _org_ruby_convert(self):
         html = utils.shell_command('org-ruby {} --translate html'.format(self.path))
         cleaner = clean.Cleaner(safe_attrs_only=True, safe_attrs=frozenset())
-        return cleaner.clean_html(html)
+        html = cleaner.clean_html(html)
+        # Fix horizontal rule.
+        # With org-ruby, it converts dash-lines to '<hr>', which is invalid invalid
+        # ENML, converting it to <hr/>
+        html = html.replace('<hr>', '<hr/>')
+        return html
+
+    def _orgco_convert(self):
+        html = orgco.convert_html(self.raw_content)
+        return self._escape(html)
+
+    def _select_backend(self):
+        """Select backend for converting orgmode to html
+        Use org-ruby if available, otherwise use python orgco module
+        """
+        if utils.executable_exists('org-ruby'):
+            return 'org_ruby'
+        else:
+            return 'orgco'
 
     def body(self):
-        """Convert note from orgmode to html.
-        Use org-ruby if available, otherwise use python orgco module"""
-        if utils.executable_exists('org-ruby'):
-            return self._org_ruby_convert()
-        else:
-            html = orgco.convert_html(self.raw_content)
-            return self._escape(html)
+        """Convert note from orgmode to html."""
+        if not self.backend:
+            self.backend = self._select_backend()
+        convert_func = getattr(self, '_{}_convert'.format(self.backend))
+        return convert_func()
 
     def post_process(self, html):
         return HTMLPostProcessor(html).run()

@@ -23,13 +23,14 @@ from eversync.processor import TextProcessor, MarkdownProcessor, OrgModeProcesso
 service_host = os.environ.get('EVERNOTE_SERVICE_HOST',
                               'app.yinxiang.com')
 dev_token = os.environ.get('EVERNOTE_DEV_TOKEN')
-supported_file_exts = ['txt', 'md', 'markdown', 'org']
 note_processors = {
     'txt': TextProcessor,
     'md': MarkdownProcessor,
     'markdown': MarkdownProcessor,
     'org': OrgModeProcessor,
+    'org_archive': OrgModeProcessor
 }
+supported_file_exts = note_processors.keys()
 max_note_count = 10000
 
 def tset_notebook(store, name):

@@ -23,12 +23,14 @@ def test_markdown():
     print "{}\n{}".format(title, '='*len(title))
     print MarkdownProcessor(markdown_file).get_content()
 
-def test_orgmode():
-    title = "Generated ENML from {}".format(orgmode_file)
+def test_orgmode(backend):
+    title = "Generated ENML from {} using {}".format(orgmode_file, backend)
     print "{}\n{}".format(title, '='*len(title))
-    print OrgModeProcessor(orgmode_file).get_content()
+    print OrgModeProcessor(orgmode_file, backend).get_content()
 
 if __name__ == '__main__':
     test_markdown()
     print '\n'
-    test_orgmode()
+    test_orgmode('org_ruby')
+    print '\n'
+    test_orgmode('orgco')
