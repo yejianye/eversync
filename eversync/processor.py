@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
+import cgi
+
 import markdown2
 import orgco
-
 from lxml.html import clean
 
 from eversync import utils
@@ -15,6 +16,8 @@ ENML_WRAPPER = u"""\
 
 __all__ = ['TextProcessor', 'MarkdownProcessor', 'OrgModeProcessor']
 def wrap_ENML(content):
+    if not isinstance(content, unicode):
+        content = content.decode('utf8')
     return ENML_WRAPPER.format(content).encode('utf8')
 
 class NoteFileProcessor(object):
@@ -68,22 +71,20 @@ class OrgModeProcessor(NoteFileProcessor):
             title += ' Archive'
         return title
 
-    def _escape(self, html):
-        return html.replace('&', '&amp;')
-
     def _org_ruby_convert(self):
-        html = utils.shell_command('org-ruby {} --translate html'.format(self.path))
+        _, html = utils.shell_command('org-ruby {} --translate html'.format(self.path))
         cleaner = clean.Cleaner(safe_attrs_only=True, safe_attrs=frozenset())
         html = cleaner.clean_html(html)
         # Fix horizontal rule.
-        # With org-ruby, it converts dash-lines to '<hr>', which is invalid invalid
+        # With org-ruby, it converts dash-lines to '<hr>', which is invalid
         # ENML, converting it to <hr/>
         html = html.replace('<hr>', '<hr/>')
         return html
 
     def _orgco_convert(self):
-        html = orgco.convert_html(self.raw_content)
-        return self._escape(html)
+        content = cgi.escape(self.raw_content, quote=True)
+        html = orgco.convert_html(content)
+        return html
 
     def _select_backend(self):
         """Select backend for converting orgmode to html
