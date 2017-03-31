@@ -95,8 +95,15 @@ class chdir(object):
         os.chdir(self.current_dir)
 
 def executable_exists(program):
-    return os.popen('which {}'.format(program)) != ''
+    retcode, _ = shell_command('which {}'.format(program))
+    return retcode == 0
 
-def shell_command(command):
-    with os.popen(command) as f:
-        return f.read().decode('utf8')
+def shell_command(command, capture_stderr=False):
+    p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = p.stdout.readlines()
+    err_output = p.stderr.readlines()
+    retcode = p.wait()
+    if capture_stderr:
+        return retcode, output, err_output,
+    else:
+        return retcode, output
